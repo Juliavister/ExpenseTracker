@@ -1,0 +1,168 @@
+{% extends "ExpenseTracker/base.html" %}
+{% block content %}
+{% load static %}
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Daily Expense Tracker</title>
+    <link rel="stylesheet" type="text/css" href="{% static 'ExpenseTracker/styles.css' %}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+
+</head>
+
+<body>
+    <button type="button" class="add-button" data-bs-toggle="modal" data-bs-target="#addCategoryModal"  style="font-family: 'Courier New', Courier, monospace">Add Category</button>
+    <!-- Modal -->
+    <div class="modal fade" id="addCategoryModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel"  style="font-family: 'Courier New', Courier, monospace">Add New Category</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="categoryForm">
+                        {% csrf_token %}
+                        <input type="text" id="newCategoryName" placeholder="Enter new category name">
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"  style="font-family: 'Courier New', Courier, monospace">Close</button>
+                    <button type="button" class="btn btn-primary" id="submitCategory"  style="font-family: 'Courier New', Courier, monospace">Add Category</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<div class="form-container">
+    <form id="ExpenseForm">
+        {% csrf_token %}
+        <input type="date" name="date" placeholder="Date">
+        <input type="text" name="amount" placeholder="Amount">
+        <input type="text" name="description" placeholder="Description">
+        <select name="category">
+            <option value="Food">Food</option>
+            <option value="Shopping">Shopping</option>
+            <option value="Transport">Transport</option>
+            <option value="Others">Others</option>
+        </select>
+        <button type="button" id="submitExpense" style="font-family: 'Courier New', Courier, monospace">Add Expense</button>
+    </form>
+</div>
+
+    <div class="container">
+        <div class="row">
+            <div class="col">
+            </div>
+        </div>
+
+        <div id="category-container" class="row">
+            <div class="category-column col" id="Food">
+                <h3 style="font-family: 'Courier New', Courier, monospace">Food</h3>
+                <form action="{% url 'AddExpense' %}" method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="category" value="Food">
+                    <button type="submit">+</button>
+                </form>
+            </div>
+
+            <div class="category-column col" id="Shopping">
+                <h3 style="font-family: 'Courier New', Courier, monospace">Shopping</h3>
+            </div>
+            <div class="category-column col" id="Transport">
+                <h3 style="font-family: 'Courier New', Courier, monospace">Transport</h3>
+            </div>
+            <div class="category-column col" id="Others">
+                <h3 style="font-family: 'Courier New', Courier, monospace">Others</h3>
+            </div>
+            {% for category in categories %}
+            <div class="category-column col" id="categoryName">
+                <h3 style="font-family: 'Courier New', Courier, monospace">{{ category.name }}</h3>
+                <form action="{% url 'AddExpense' %}" method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="category" value="{{ category.name }}">
+                    <button type="submit">+</button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <footer>
+        <p style="font-family: 'Courier New', Courier, monospace">Created by: Julia Vister</p>
+    </footer>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('#submitCategory').on('click', function(event) {
+                event.preventDefault();
+                var categoryName = $('#newCategoryName').val().trim();
+
+                if (categoryName !== '') {
+                    $.ajax({
+                        type: 'POST',
+                        url: '/add-category/',
+                        data: {
+                            name: categoryName,
+                            csrfmiddlewaretoken: $('input[name=csrfmiddlewaretoken]').val()
+                        },
+                        success: function(response) {
+                            console.log('New category added:', categoryName);
+                            var newCategoryHTML = '<div class="category-column col"><h3>' + categoryName + '</h3></div>';
+                            $('#category-container').append(newCategoryHTML);
+                            $('#newCategoryName').val(''); // Clear the input field after adding the category
+                            $('#addCategoryModal').modal('hide'); // Close the modal
+                        },
+                        error: function(error) {
+                            console.error('Error adding category:', error);
+                        }
+                    });
+                } 
+            });
+        });
+    </script>
+
+    <script>
+    $(document).ready(function() {
+    $('#submitExpense').on('click', function(event) {
+        event.preventDefault();
+        
+        var formData = $('#ExpenseForm').serialize();
+
+        $.ajax({
+            type: 'POST',
+            url: '/AddExpense/',
+            data: formData,
+            success: function(response) {
+                console.log('Expense added successfully:', response);
+
+                if (response.success) {
+                    // Assuming the response contains the added expense details
+                    var expenseText = response.new_expense.description + ', ' + response.new_expense.amount;
+
+                    // Find the selected category and append the new expense
+                    var selectedCategory = $('select[name=category]').val();
+                    $('#' + selectedCategory + 'Column').append('<p>' + expenseText + '</p>');
+                    
+                    // Optionally, clear the form fields after adding the expense
+                    $('ExpenseForm')[0].reset();
+                } else {
+                    // Handle errors if needed
+                    console.error('Error adding expense:', response.errors);
+                }
+            },
+            error: function(error) {
+                console.error('Error adding expense:', error);
+                // Handle errors, show an error message or take appropriate action
+            }
+        });
+    });
+});
+    </script>
+
+</body>
+</html>
+{% endblock content %}
